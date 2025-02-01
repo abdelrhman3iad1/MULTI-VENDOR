@@ -8,6 +8,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use View;
+use Illuminate\Support\Facades\Storage;
 
 class CategoryController extends Controller
 {
@@ -26,7 +27,8 @@ class CategoryController extends Controller
     public function create()
     {
         $parents = Category::all();
-        return view("Admin.Dashboard.Categories.create",compact("parents"));
+        $category = new Category; 
+        return view("Admin.Dashboard.Categories.create",compact("category","parents"));
     }
 
     /**
@@ -37,7 +39,13 @@ class CategoryController extends Controller
         $request->merge([
             "slug" => Str::slug($request->post("name"))
         ]);
-        Category::create($request->all());
+        $data = $request->except('image');
+        if ($request->hasFile('image')){
+            $file = $request->file('image');
+            $path = $file->store('uploads',"public");
+            $data['image'] = $path;
+        }
+        Category::create($data);
         
         return redirect()->route('dashboard.categories.index')->with("success","Category Added Successfully .");
     }
@@ -82,7 +90,18 @@ class CategoryController extends Controller
     public function update(Request $request, string $id)
     {
         $category = Category::findOrFail($id);
-        $category->update($request->all());
+        $data = $request->except('image');
+        $old_image = $category->image;
+        if ($request->hasFile('image')){
+            $file = $request->file('image');
+            $path = $file->store('uploads',"public");
+            $data['image'] = $path;
+        }
+        $category->update($data);
+
+        if($old_image && isset($data["image"])){
+            Storage::disk('public')->delete($old_image);
+        }
         return redirect()->route("dashboard.categories.index")->with("success","Category updated successfully");
     }
 
